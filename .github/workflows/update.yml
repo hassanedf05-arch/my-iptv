@@ -19,18 +19,17 @@ jobs:
         python-version: '3.9'
 
     - name: Install dependencies
-      run: |
-        pip install requests urllib3
+      run: pip install requests urllib3
 
     - name: Run Premium Hunter
       run: python main.py
-      continue-on-error: true
 
     - name: Commit and push changes
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add playlist.m3u index.html
-        git commit -m "🚀 تحديث القنوات والـ Dashboard" || exit 0
+        # تم تعديل السطر التالي ليشمل المجلد الجديد وكل ما بداخله
+        git add playlists/
+        git commit -m "🚀 تحديث شامل: العربية والعالمية والمدفوعة" || exit 0
         git push
 
