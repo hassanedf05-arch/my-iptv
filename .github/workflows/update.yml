@@ -1,32 +1,36 @@
-name: Auto IPTV Update
+name: Auto IPTV Premium Hunter
+
 on:
   schedule:
-    - cron: '0 * * * *' # سيعمل البوت تلقائياً كل ساعة
-  workflow_dispatch: # يتيح لك تشغيله يدوياً في أي وقت
+    - cron: '*/30 * * * *' # تشغيل تلقائي كل 30 دقيقة
+  workflow_dispatch: # إمكانية التشغيل اليدوي
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
 
-      - name: Install dependencies
-        run: pip install requests
+    - name: Install dependencies
+      run: |
+        pip install requests urllib3
 
-      - name: Run Scraper
-        run: python main.py
+    - name: Run Premium Hunter
+      run: python main.py
+      continue-on-error: true # لضمان استمرار العمل حتى لو فشل مصدر واحد
 
-      - name: Commit changes
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add playlist.m3u
-          git commit -m "Update channels" || exit 0
-          git push
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add playlist.m3u
+        git commit -m "🚀 تحديث ذكي للقنوات المشفرة" || exit 0
+        git push
 
