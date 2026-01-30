@@ -1,23 +1,46 @@
-import requests
+Import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import concurrent.futures
 import datetime
+import os
 
-# 🌍 المصادر العالمية + Premium + القنوات العربية (تمت إضافة الدول المطلوبة)
-SOURCES = [
-    "https://iptv-org.github.io/iptv/index.m3u",  # أكبر مصدر عالمي
-    "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/ar.m3u",
-    "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/us.m3u",
-    "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/uk.m3u",
-    "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/fr.m3u",
-    "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/it.m3u", # إيطاليا
-    "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/de.m3u", # ألمانيا
-    "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/es.m3u", # إسبانيا
-    "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/tr.m3u", # تركيا
-    "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/br.m3u", # البرازيل
-    "https://raw.githubusercontent.com/skid9000/all-iptv-links/main/premium.m3u"
-]
+# 🌍 المصادر العالمية + Premium + قنوات عربية ودولية
+SOURCES = {
+    "world": [
+        "https://iptv-org.github.io/iptv/index.m3u",
+    ],
+    "ar": [
+        "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/ar.m3u"
+    ],
+    "us": [
+        "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/us.m3u"
+    ],
+    "uk": [
+        "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/uk.m3u"
+    ],
+    "fr": [
+        "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/fr.m3u"
+    ],
+    "it": [
+        "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/it.m3u"
+    ],
+    "de": [
+        "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/de.m3u"
+    ],
+    "es": [
+        "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/es.m3u"
+    ],
+    "tr": [
+        "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/tr.m3u"
+    ],
+    "br": [
+        "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/br.m3u"
+    ],
+    "premium": [
+        "https://raw.githubusercontent.com/skid9000/all-iptv-links/main/premium.m3u"
+    ]
+}
 
 def create_session():
     session = requests.Session()
@@ -27,7 +50,7 @@ def create_session():
     session.mount("https://", adapter)
     session.headers.update({
         "User-Agent": "Mozilla/5.0",
-        "Range": "bytes=0-2048"  # أول قطعتين من البث لتأكيد وجوده
+        "Range": "bytes=0-2048"
     })
     return session
 
@@ -42,62 +65,68 @@ def is_live(session, url):
         pass
     return False
 
-def main():
-    sess = create_session()
+def collect_channels(sess, urls):
+    """جمع كل القنوات من قائمة المصادر"""
     raw_channels = []
     seen_links = set()
-
-    print("📡 استخراج كل القنوات من جميع المصادر...")
-    for src in SOURCES:
+    for src in urls:
         try:
             r = sess.get(src, timeout=20)
             if "html" in r.headers.get("Content-Type", "").lower():
                 continue
-
             lines = r.text.splitlines()
             for i in range(len(lines)):
                 if lines[i].startswith("#EXTINF"):
                     info = lines[i]
                     link = lines[i+1].strip() if i+1 < len(lines) else ""
-
                     if link.startswith("http") and link not in seen_links:
                         seen_links.add(link)
                         raw_channels.append({"info": info, "link": link})
         except:
             continue
+    return raw_channels
 
-    print(f"🔎 فحص {len(raw_channels)} قناة (Live Check)...")
-    final_list = ['#EXTM3U x-tvg-url="http://www.teleguide.info/download/new3/jtv.zip"\n']
+def save_m3u(filename, channels):
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write('#EXTM3U x-tvg-url="http://www.teleguide.info/download/new3/jtv.zip"\n')
+        for ch in channels:
+            f.write(f"{ch['info']}\n{ch['link']}\n")
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-        future_map = {executor.submit(is_live, sess, ch["link"]): ch for ch in raw_channels}
+def main():
+    sess = create_session()
+    os.makedirs("playlists", exist_ok=True)
+    dashboard_counts = {}
 
-        for future in concurrent.futures.as_completed(future_map):
-            ch = future_map[future]
-            if future.result():
-                final_list.append(f"{ch['info']}\n{ch['link']}\n")
+    for category, urls in SOURCES.items():
+        print(f"📡 معالجة قنوات {category}...")
+        raw_channels = collect_channels(sess, urls)
+        print(f"🔎 عدد الروابط المكتشفة: {len(raw_channels)}. جاري التحقق من عملها...")
 
-    with open("playlist.m3u", "w", encoding="utf-8") as f:
-        f.writelines(final_list)
+        final_channels = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+            future_map = {executor.submit(is_live, sess, ch["link"]): ch for ch in raw_channels}
+            for future in concurrent.futures.as_completed(future_map):
+                ch = future_map[future]
+                if future.result():
+                    final_channels.append(ch)
 
-    # إنشاء Dashboard سريع
-    count = (len(final_list) - 1) // 2
+        filename = os.path.join("playlists", f"{category}.m3u")
+        save_m3u(filename, final_channels)
+        dashboard_counts[category] = len(final_channels)
+        print(f"✅ {category}: تم حفظ {len(final_channels)} قناة شغالة")
+
+    # إنشاء Dashboard HTML
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    html = f"""
-    <html>
-    <body style="background:#121212;color:white;text-align:center;font-family:sans-serif;">
-        <h1>🌍 World IPTV Dashboard</h1>
-        <div style="font-size:70px;color:#00ff88;">{count}</div>
-        <p>قنوات شغالة (مجانية + مدفوعة) حسب المصدر</p>
-        <p style="color:#777;">آخر تحديث: {now}</p>
-    </body>
-    </html>
-    """
-    with open("index.html", "w", encoding="utf-8") as f:
+    html = f"<html><body style='background:#121212;color:white;font-family:sans-serif;text-align:center;'>"
+    html += f"<h1>🌍 Ultra Premium IPTV Dashboard</h1>"
+    for cat, count in dashboard_counts.items():
+        html += f"<p style='font-size:24px;'>{cat.upper()}: <span style='color:#00ff88;'>{count}</span> قناة</p>"
+    html += f"<p style='color:#777;'>آخر تحديث: {now}</p></body></html>"
+
+    with open("playlists/index.html", "w", encoding="utf-8") as f:
         f.write(html)
 
-    print(f"✅ انتهى! عدد القنوات الحية: {count}")
+    print("✅ اكتملت جميع الملفات والقنوات جاهزة في مجلد 'playlists'")
 
 if __name__ == "__main__":
     main()
-
