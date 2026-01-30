@@ -2,7 +2,7 @@ name: Auto IPTV Premium Hunter
 
 on:
   schedule:
-    - cron: '*/30 * * * *' # تشغيل تلقائي كل 30 دقيقة لضمان روابط طازجة
+    - cron: '*/30 * * * *' # تشغيل تلقائي كل 30 دقيقة
   workflow_dispatch: # يتيح لك التشغيل اليدوي بضغطة زر
 
 jobs:
@@ -20,17 +20,16 @@ jobs:
 
     - name: Install dependencies
       run: |
-        [span_3](start_span)pip install requests urllib3 # تثبيت المكتبات اللازمة للفحص[span_3](end_span)
+        pip install requests urllib3
 
     - name: Run Premium Hunter
       run: python main.py
-      [span_4](start_span)continue-on-error: true # لضمان استمرار العمل حتى لو فشل أحد المصادر[span_4](end_span)
+      continue-on-error: true 
 
     - name: Commit and push changes
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        [span_5](start_span)git add playlist.m3u index.html # إضافة ملف القنوات والواجهة[span_5](end_span)
+        git add playlist.m3u index.html
         git commit -m "🚀 تحديث القنوات والـ Dashboard" || exit 0
         git push
-
