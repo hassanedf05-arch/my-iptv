@@ -28,8 +28,7 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        # تم تعديل السطر التالي ليشمل المجلد الجديد وكل ما بداخله
+        # السطر التالي يضمن حفظ مجلد البلايليست الجديد بالكامل
         git add playlists/
-        git commit -m "🚀 تحديث شامل: العربية والعالمية والمدفوعة" || exit 0
+        git commit -m "🚀 تحديث القنوات العربية والعالمية والمدفوعة" || exit 0
         git push
-
