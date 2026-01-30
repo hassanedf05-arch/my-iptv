@@ -1,0 +1,32 @@
+name: Auto IPTV Update
+on:
+  schedule:
+    - cron: '0 * * * *' # سيعمل البوت تلقائياً كل ساعة
+  workflow_dispatch: # يتيح لك تشغيله يدوياً في أي وقت
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run Scraper
+        run: python main.py
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add playlist.m3u
+          git commit -m "Update channels" || exit 0
+          git push
+
